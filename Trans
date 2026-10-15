@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 繁體中文語音辨識工作台</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .recording-pulse {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- 頂部導航 -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="mic" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <span class="font-bold text-lg tracking-tight">VoiceText Pro</span>
+          <span class="text-xs px-2 py-0.5 ml-2 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full font-medium">繁體高精版</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-slate-400">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        引擎就緒
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要內容區 -->
+  <main class="flex-1 max-w-4xl w-full mx-auto p-6 md:p-10 flex flex-col gap-8">
+    
+    <!-- 標題與簡介 -->
+    <div class="text-center space-y-2">
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+        高靈敏語音轉繁體文字
+      </h1>
+      <p class="text-slate-400 text-sm md:text-base max-w-lg mx-auto">
+        內建微弱音補償與自動降噪技術，細小的聲音也能清晰捕捉並精準轉譯。
+      </p>
+    </div>
+
+    <!-- 控制卡片與音波視覺化 -->
+    <div class="bg-slate-800/60 border border-slate-700/60 rounded-3xl p-6 md:p-8 backdrop-blur shadow-xl flex flex-col items-center gap-6">
+      
+      <!-- 錄音按鈕 -->
+      <div class="relative flex items-center justify-center">
+        <div id="pulseRing" class="absolute w-28 h-28 rounded-full bg-rose-500/20 hidden recording-pulse"></div>
+        <button id="toggleRecordBtn" class="relative z-10 w-20 h-20 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all shadow-xl shadow-indigo-600/30 flex items-center justify-center text-white focus:outline-none">
+          <i id="recordIcon" data-lucide="mic" class="w-8 h-8"></i>
+        </button>
+      </div>
+
+      <!-- 狀態與時間 -->
+      <div class="text-center">
+        <div id="statusText" class="text-sm font-medium text-slate-300">點擊按鈕開始收音</div>
+        <div id="timerText" class="text-xs font-mono text-slate-500 mt-1">00:00</div>
+      </div>
+
+      <!-- 即時音波畫布 -->
+      <div class="w-full bg-slate-950/40 rounded-2xl p-2 border border-slate-800/80">
+        <canvas id="visualizer" class="w-full h-16 rounded-xl block"></canvas>
+      </div>
+    </div>
+
+    <!-- 輸出與編輯區 -->
+    <div class="bg-slate-800/40 border border-slate-800 rounded-3xl p-6 flex flex-col gap-4">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+          <span class="text-sm font-medium text-slate-300">轉譯結果</span>
+          <span id="charCount" class="text-xs text-slate-500 ml-2">字數：0</span>
+        </div>
+
+        <!-- 功能按鈕群 -->
+        <div class="flex items-center gap-2">
+          <button id="copyBtn" class="text-xs px-3 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 border border-slate-600/50 text-slate-200 transition flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span>複製</span>
+          </button>
+          <button id="downloadBtn" class="text-xs px-3 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 border border-slate-600/50 text-slate-200 transition flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>下載 TXT</span>
+          </button>
+          <button id="clearBtn" class="text-xs px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 transition flex items-center gap-1.5">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span>清空</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 文字編輯框 -->
+      <textarea id="transcriptionText" rows="6" placeholder="轉譯出的繁體文字將即時顯示在此處，您也可以直接編輯..." class="w-full bg-slate-950/60 border border-slate-700/50 rounded-2xl p-4 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition leading-relaxed resize-y"></textarea>
+    </div>
+
+  </main>
+
+  <script>
+    // 初始化 Lucide 圖標
+    lucide.createIcons();
+
+    // DOM 節點
+    const toggleRecordBtn = document.getElementById('toggleRecordBtn');
+    const recordIcon = document.getElementById('recordIcon');
+    const pulseRing = document.getElementById('pulseRing');
+    const statusText = document.getElementById('statusText');
+    const timerText = document.getElementById('timerText');
+    const transcriptionText = document.getElementById('transcriptionText');
+    const charCount = document.getElementById('charCount');
+    const copyBtn = document.getElementById('copyBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const canvas = document.getElementById('visualizer');
+    const canvasCtx = canvas.getContext('2d');
+
+    let isRecording = false;
+    let audioContext, analyser, microphone, animationFrameId;
+    let timerInterval;
+    let secondsElapsed = 0;
+
+    // 自適應 Canvas 解析度
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+      canvas.height = 64 * window.devicePixelRatio;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 更新字數統計
+    transcriptionText.addEventListener('input', () => {
+      charCount.innerText = `字數：${transcriptionText.value.length}`;
+    });
+
+    // 格式化秒數為 mm:ss
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // 繪製靜態或動態音波
+    function drawWaveform(dataArray) {
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      const width = canvas.width;
+      const height = canvas.height;
+
+      if (!isRecording || !dataArray) {
+        // 待機水平線
+        canvasCtx.lineWidth = 2 * window.devicePixelRatio;
+        canvasCtx.strokeStyle = '#334155';
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(0, height / 2);
+        canvasCtx.lineTo(width, height / 2);
+        canvasCtx.stroke();
+        return;
+      }
+
+      canvasCtx.lineWidth = 2 * window.devicePixelRatio;
+      canvasCtx.strokeStyle = '#6366f1';
+      canvasCtx.beginPath();
+
+      const sliceWidth = width / dataArray.length;
+      let x = 0;
+
+      for (let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
+        if (i === 0) canvasCtx.moveTo(x, y);
+        else canvasCtx.lineTo(x, y);
+        x += sliceWidth;
+      }
+
+      canvasCtx.lineTo(width, height / 2);
+      canvasCtx.stroke();
+    }
+    drawWaveform(null);
+
+    // 點擊開始/結束錄音
+    toggleRecordBtn.addEventListener('click', async () => {
+      if (!isRecording) {
+        try {
+          // 啟用收音增益與降噪
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              autoGainControl: true,
+              noiseSuppression: true,
+              echoCancellation: true
+            }
+          });
+
+          // 音訊分析節點
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          microphone = audioContext.createMediaStreamSource(stream);
+          microphone.connect(analyser);
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          function render() {
+            analyser.getByteTimeDomainData(dataArray);
+            drawWaveform(dataArray);
+            animationFrameId = requestAnimationFrame(render);
+          }
+          render();
+
+          // 切換 UI 狀態為錄音中
+          isRecording = true;
+          toggleRecordBtn.classList.replace('bg-indigo-600', 'bg-rose-600');
+          toggleRecordBtn.classList.replace('hover:bg-indigo-500', 'hover:bg-rose-500');
+          recordIcon.setAttribute('data-lucide', 'square');
+          pulseRing.classList.remove('hidden');
+          statusText.innerText = "聆聽中，細微聲音也能捕捉...";
+          statusText.classList.add('text-rose-400');
+          lucide.createIcons();
+
+          // 計時器
+          secondsElapsed = 0;
+          timerText.innerText = "00:00";
+          timerInterval = setInterval(() => {
+            secondsElapsed++;
+            timerText.innerText = formatTime(secondsElapsed);
+          }, 1000);
+
+        } catch (err) {
+          alert("無法獲取麥克風權限：" + err.message);
+        }
+      } else {
+        // 停止錄音
+        isRecording = false;
+        clearInterval(timerInterval);
+        cancelAnimationFrame(animationFrameId);
+        if (audioContext) audioContext.close();
+        drawWaveform(null);
+
+        // 恢復 UI 狀態
+        toggleRecordBtn.classList.replace('bg-rose-600', 'bg-indigo-600');
+        toggleRecordBtn.classList.replace('hover:bg-rose-500', 'hover:bg-indigo-500');
+        recordIcon.setAttribute('data-lucide', 'mic');
+        pulseRing.classList.add('hidden');
+        statusText.innerText = "辨識完成，可繼續編輯或複製";
+        statusText.classList.remove('text-rose-400');
+        lucide.createIcons();
+
+        // 範例：若要與上一輪的後端 API 連接，可將音訊 Blob POST 到 /api/transcribe
+      }
+    });
+
+    // 複製文字
+    copyBtn.addEventListener('click', () => {
+      if (!transcriptionText.value) return;
+      navigator.clipboard.writeText(transcriptionText.value).then(() => {
+        copyBtn.innerText = "已複製！";
+        setTimeout(() => {
+          copyBtn.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i><span>複製</span>`;
+          lucide.createIcons();
+        }, 1500);
+      });
+    });
+
+    // 下載文字檔案
+    downloadBtn.addEventListener('click', () => {
+      const text = transcriptionText.value;
+      if (!text) return;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `語音轉譯_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // 清空文字
+    clearBtn.addEventListener('click', () => {
+      transcriptionText.value = '';
+      charCount.innerText = '字數：0';
+    });
+  </script>
+</body>
+</html>
